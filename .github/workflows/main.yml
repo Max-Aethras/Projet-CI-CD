@@ -33,3 +33,21 @@ jobs:
           push: true
           # Remplace "ton-pseudo" par ton vrai pseudo Docker Hub ci-dessous
           tags: ${{ secrets.DOCKER_HUB_USERNAME }}/mon-app-node:latest
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to Azure VM
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.AZURE_VM_IP }}
+          username: ${{ secrets.AZURE_VM_USER }}
+          key: ${{ secrets.AZURE_SSH_KEY }}
+          script: |
+            # On arrête l'ancien conteneur s'il existe
+            docker stop mon-app || true
+            docker rm mon-app || true
+            # On récupère la dernière image depuis Docker Hub
+            docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/mon-app-node:latest
+            # On lance le nouveau conteneur sur le port 3000
+            docker run -d --name mon-app -p 3000:3000 ${{ secrets.DOCKER_HUB_USERNAME }}/mon-app-node:latest
